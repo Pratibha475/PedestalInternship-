@@ -1,1 +1,72 @@
+import requests
+import pandas as pd
+import argparse
 
+def fetch_country_data():
+    url = "https://restcountries.com/v3.1/all"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print("Error fetching data from API:", e)
+        return []
+
+def parse_country_data(data):
+    countries = []
+    for country in data:
+        name = country.get("name", {}).get("common", "Unknown")
+        population = country.get("population", 0)
+        region = country.get("region", "Unknown")
+        countries.append({
+            "Name": name,
+            "Population": population,
+            "Region": region
+        })
+    return countries
+
+def display_summary(countries):
+    total = len(countries)
+    total_pop = sum(c["Population"] for c in countries)
+    avg_pop = total_pop / total if total else 0
+
+    print("\n--- Summary Statistics ---")
+    print(f"Total Countries: {total}")
+    print(f"Total Population: {total_pop}")
+    print(f"Average Population: {int(avg_pop)}")
+
+def display_top_countries(countries, top_n=5):
+    sorted_countries = sorted(countries, key=lambda x: x["Population"], reverse=True)[:top_n]
+    print(f"\n--- Top {top_n} Countries by Population ---")
+    for c in sorted_countries:
+        print(f"{c['Name']}: {c['Population']}")
+
+def save_data(countries, file_type):
+    df = pd.DataFrame(countries)
+    if file_type == "csv":
+        df.to_csv("countries_data.csv", index=False)
+        print("\nData saved to countries_data.csv")
+    elif file_type == "json":
+        df.to_json("countries_data.json", indent=2)
+        print("\nData saved to countries_data.json")
+
+def main():
+    parser = argparse.ArgumentParser(description="Fetch and display country data from REST Countries API.")
+    parser.add_argument("--save", choices=["csv", "json"], help="Save data to a file (csv or json)")
+
+    args = parser.parse_args()
+
+    data = fetch_country_data()
+    if not data:
+        return
+
+    countries = parse_country_data(data)
+
+    display_summary(countries)
+    display_top_countries(countries)
+
+    if args.save:
+        save_data(countries, args.save)
+
+if __name__ == "__main__":
+    main()
